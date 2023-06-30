@@ -13,6 +13,8 @@ import org.jfree.chart.plot.PlotOrientation;
 import org.jfree.data.xy.XYSeries;
 import org.jfree.data.xy.XYSeriesCollection;
 
+import javax.swing.*;
+
 /**
  * Hello world!
  *
@@ -31,10 +33,16 @@ public class App {
         ArrayList<Double> rValues1 = readData(file1);
         ArrayList<Double> rValues2 = readData(file2);
 
-
+        if (rValues1.size() != rValues2.size()) {
+            JOptionPane.showConfirmDialog(null, "两组数据中的数据量不一致", "警告", JOptionPane.CLOSED_OPTION);
+            return;
+        }
         // 计算数据组1和数据组2的R值的商
         ArrayList<Double> ratios = new ArrayList<>();
         for (int i = 0; i < rValues1.size(); i++) {
+            if (rValues2.get(i) == 0) {
+                continue;
+            }
             double ratio = rValues1.get(i) / rValues2.get(i);
             ratios.add(ratio);
         }
@@ -60,11 +68,14 @@ public class App {
         // 保存图表为PNG文件
         ChartUtilities.saveChartAsPNG(new File("chart.png"), chart, 800, 600);
 
-        RealTimeChart chart2 = new RealTimeChart("Real-time Chart", "1/2", 100);
+        RealTimeChart chart2 = new RealTimeChart("1/2 Chart", "1/2", 100);
+        Double sum = 0d;
         for (Double data : ratios) {
             chart2.plot(data);
+            sum += data;
         }
-
+        Double avg = sum / ratios.size();
+        chart2.addAvgPlane(avg);
     }
 
     private static ArrayList<Double> readData(String filename) throws Exception {
@@ -75,16 +86,28 @@ public class App {
             String[] parts = line.split(" ");
             if (parts.length >= 3) {
                 int rIndex = parts[2].indexOf("R:");
-                if (rIndex > -1) {
+                if (rIndex > -1 && parts[2].endsWith("mm")) {
                     String valueStr = parts[2].substring(rIndex + 2, parts[2].length() - 2);
-                    double value = Double.parseDouble(valueStr);
-                    data.add(value);
+                    if (isNumeric(valueStr)) {
+                        double value = Double.parseDouble(valueStr);
+                        data.add(value);
+                    }
+
                 }
             }
 
         }
         reader.close();
         return data;
+    }
+
+    public static boolean isNumeric(String str) {
+        for (int i = 0; i < str.length(); i++) {
+            if (!Character.isDigit(str.charAt(i)) && !('.' == str.charAt(i))) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static ArrayList<Double> extractRValues(ArrayList<Double> data) {

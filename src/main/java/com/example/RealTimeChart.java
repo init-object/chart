@@ -1,12 +1,16 @@
 package com.example;
+import java.awt.*;
+import java.text.DecimalFormat;
 import java.util.LinkedList;
 import java.util.List;
 
 import javax.swing.JFrame;
 
+import org.knowm.xchart.AnnotationTextPanel;
 import org.knowm.xchart.SwingWrapper;
 import org.knowm.xchart.XYChart;
 import org.knowm.xchart.XYChartBuilder;
+import org.knowm.xchart.style.Styler;
 import org.knowm.xchart.style.Styler.ChartTheme;
 import org.knowm.xchart.style.Styler.LegendLayout;
 import org.knowm.xchart.style.Styler.LegendPosition;
@@ -92,12 +96,22 @@ public class RealTimeChart {
 			// Create Chart
 			chart = new XYChartBuilder().width(600).height(450).theme(ChartTheme.Matlab).title(title).build();
 			chart.addSeries(seriesName, null, seriesData);
+			chart.getStyler().setToolTipsEnabled(true);
+			chart.getStyler().setToolTipsAlwaysVisible(true);
+			chart.getStyler().setYAxisMax(4.0d);
+			// chart.getStyler().setToolTipFont( new Font("Verdana", Font.BOLD, 9));
+			// chart.getStyler().setToolTipHighlightColor(Color.CYAN);
+			// chart.getStyler().setToolTipBorderColor(Color.BLACK);
+			// chart.getStyler(). setToolTipBackgroundColor(Color.LIGHT_GRAY);
+			chart.getStyler().setToolTipType(Styler.ToolTipType.yLabels);
+			chart.getStyler().setyAxisTickLabelsFormattingFunction(RealTimeChart::doubleFormatInteger);
 			chart.getStyler().setLegendPosition(LegendPosition.OutsideS);// 设置legend的位置为外底部
 			chart.getStyler().setLegendLayout(LegendLayout.Horizontal);// 设置legend的排列方式为水平排列
+
  
 			swingWrapper = new SwingWrapper<XYChart>(chart);
 			frame = swingWrapper.displayChart();
-			frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);// 防止关闭窗口时退出程序
+			// frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);// 防止关闭窗口时退出程序
 		} else {
  
 			// Update Chart
@@ -105,4 +119,26 @@ public class RealTimeChart {
 			swingWrapper.repaintChart();
 		}
 	}
+
+	public static String doubleFormatInteger(double number) {
+		String numberStr;
+		if (((int) number * 1000) == (int) (number * 1000)) {
+			//如果是一个整数
+			numberStr = String.valueOf((int) number);
+		} else {
+			DecimalFormat df = new DecimalFormat("######0.0000");
+			numberStr = df.format(number);
+		}
+		return numberStr;
+	}
+
+	public void addAvgPlane(Double avg){
+		chart.addAnnotation(
+				new AnnotationTextPanel(
+						"AVG: " + doubleFormatInteger(avg),
+						480,
+						380,
+						true));
+	}
+
 }
