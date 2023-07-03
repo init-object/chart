@@ -69,13 +69,10 @@ public class App {
         ChartUtilities.saveChartAsPNG(new File("chart.png"), chart, 800, 600);
 
         RealTimeChart chart2 = new RealTimeChart("1/2 Chart", "1/2", 100);
-        Double sum = 0d;
+
         for (Double data : ratios) {
             chart2.plot(data);
-            sum += data;
         }
-        Double avg = sum / ratios.size();
-        chart2.addAvgPlane(avg);
     }
 
     private static ArrayList<Double> readData(String filename) throws Exception {

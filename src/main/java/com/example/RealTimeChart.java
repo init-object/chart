@@ -1,15 +1,17 @@
 package com.example;
 import java.awt.*;
 import java.text.DecimalFormat;
+import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 
-import javax.swing.JFrame;
+import javax.swing.*;
 
 import org.knowm.xchart.AnnotationTextPanel;
 import org.knowm.xchart.SwingWrapper;
 import org.knowm.xchart.XYChart;
 import org.knowm.xchart.XYChartBuilder;
+import org.knowm.xchart.XYSeries;
 import org.knowm.xchart.style.Styler;
 import org.knowm.xchart.style.Styler.ChartTheme;
 import org.knowm.xchart.style.Styler.LegendLayout;
@@ -36,6 +38,19 @@ public class RealTimeChart {
 	private String seriesName;// 系列，此处只有一个系列。若存在多组数据，可以设置多个系列
 	private List<Double> seriesData;// 系列的数据
 	private int size = 1000;// 最多显示多少数据，默认显示1000个数据
+
+
+	JLabel yMaxLabel = new JLabel("y轴最大值");
+	JTextField yMaxTextField = new JTextField(10);
+	JLabel yMinLabel = new JLabel("y轴最小值");
+	JTextField yMinTextField = new JTextField(10);
+	JLabel decimalFormatLabel = new JLabel("保留n位小数");
+	JComboBox<Integer> decimalFormatBox = new JComboBox<>();
+	JButton button = new JButton("重新绘制");
+
+	private static int decimalFormat = 4;
+
+	private AnnotationTextPanel avgTextPanel;
  
 	public int getSize() {
 		return size;
@@ -98,7 +113,6 @@ public class RealTimeChart {
 			chart.addSeries(seriesName, null, seriesData);
 			chart.getStyler().setToolTipsEnabled(true);
 			chart.getStyler().setToolTipsAlwaysVisible(true);
-			chart.getStyler().setYAxisMax(4.0d);
 			// chart.getStyler().setToolTipFont( new Font("Verdana", Font.BOLD, 9));
 			// chart.getStyler().setToolTipHighlightColor(Color.CYAN);
 			// chart.getStyler().setToolTipBorderColor(Color.BLACK);
@@ -111,34 +125,132 @@ public class RealTimeChart {
  
 			swingWrapper = new SwingWrapper<XYChart>(chart);
 			frame = swingWrapper.displayChart();
+
+			// Container contentPane = frame.getContentPane();
+			// contentPane.setLayout(new FlowLayout());
+			JPanel pane = new JPanel();
+			pane.add(yMaxLabel);
+			pane.add(yMaxTextField);
+			pane.add(yMinLabel);
+			pane.add(yMinTextField);
+			pane.add(decimalFormatLabel);
+			decimalFormatBox.addItem(1);
+			decimalFormatBox.addItem(2);
+			decimalFormatBox.addItem(3);
+			decimalFormatBox.addItem(4);
+			decimalFormatBox.addItem(5);
+			decimalFormatBox.addItem(6);
+			decimalFormatBox.setSelectedIndex(4-1);
+			setDoubleFormat(4);
+			pane.add(decimalFormatBox);
+			pane.add(button);
+			button.addActionListener((e) -> {
+				onButtonOk();
+			});
+			frame.add(pane, BorderLayout.NORTH);
+
+			frame.pack();
 			// frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);// 防止关闭窗口时退出程序
 		} else {
  
 			// Update Chart
 			chart.updateXYSeries(seriesName, null, seriesData, null);
-			swingWrapper.repaintChart();
+			XYSeries xySeries = chart.getSeriesMap()
+									 .get(seriesName);
+			double yMin = xySeries.getYMin();
+			double yMax = xySeries.getYMax();
+			double yDiff = yMax - yMin;
+			yMax = yMax + yDiff * 5;
+			yMin = (yMin - yDiff * 5) > 0 ? (yMin - yDiff * 5) : 0;
+			yMaxTextField.setText(doubleFormatInteger(yMax));
+			yMinTextField.setText(doubleFormatInteger(yMin));
+			repaintChart(xySeries, yMin, yMax);
+
 		}
+	}
+
+	private void repaintChart(XYSeries xySeries,
+						   double yMin,
+						   double yMax) {
+		chart.getStyler().setYAxisMax(yMax);
+		chart.getStyler().setYAxisMin(yMin);
+		double avg = Arrays.stream(xySeries.getYData())
+						   .average()
+						   .getAsDouble();
+		addAvgPlane(avg);
+		swingWrapper.repaintChart();
+	}
+
+	private void onButtonOk() {
+		String yMaxText = yMaxTextField.getText();
+		String yMinText = yMinTextField.getText();
+		if ("".equals(yMaxText) || "".equals(yMinText)) {
+			Object[] options = { "OK ", "CANCEL " };
+			JOptionPane.showOptionDialog(null, "您还没有输入 ", "提示", JOptionPane.DEFAULT_OPTION,
+										 JOptionPane.WARNING_MESSAGE,null, options, options[0]);
+		}else if (App.isNumeric(yMaxText) && App.isNumeric(yMinText)){
+			double yMax = Double.parseDouble(yMaxText);
+			double yMin = Double.parseDouble(yMinText);
+			if (yMax < yMin) {
+				Object[] options = { "OK ", "CANCEL " };
+				JOptionPane.showOptionDialog(null, "y轴最小值不可大于最大值 ", "提示", JOptionPane.DEFAULT_OPTION,
+											 JOptionPane.WARNING_MESSAGE,null, options, options[0]);
+				return;
+			}
+			Integer selectedItem = (Integer)decimalFormatBox.getSelectedItem();
+			setDoubleFormat(selectedItem);
+			XYSeries xySeries = chart.getSeriesMap()
+									 .get(seriesName);
+			double yMinData = xySeries.getYMin();
+			double yMaxData = xySeries.getYMax();
+			if (yMax < yMaxData) {
+				Object[] options = { "OK ", "CANCEL " };
+				JOptionPane.showOptionDialog(null, "y轴最大值不可小于数据最大值 " + doubleFormatInteger(yMaxData), "提示", JOptionPane.DEFAULT_OPTION,
+											 JOptionPane.WARNING_MESSAGE,null, options, options[0]);
+				return;
+			}
+			if (yMin > yMinData) {
+				Object[] options = { "OK ", "CANCEL " };
+				JOptionPane.showOptionDialog(null, "y轴最小值不可大于数据最小值 " + doubleFormatInteger(yMinData), "提示", JOptionPane.DEFAULT_OPTION,
+											 JOptionPane.WARNING_MESSAGE,null, options, options[0]);
+				return;
+			}
+			repaintChart(xySeries, yMin, yMax);
+		} else {
+			Object[] options = { "OK ", "CANCEL " };
+			JOptionPane.showOptionDialog(null, "请输入数字", "提示", JOptionPane.DEFAULT_OPTION,
+										 JOptionPane.WARNING_MESSAGE,null, options, options[0]);
+		}
+	}
+
+	public static void setDoubleFormat(int value) {
+		decimalFormat = value;
 	}
 
 	public static String doubleFormatInteger(double number) {
-		String numberStr;
-		if (((int) number * 1000) == (int) (number * 1000)) {
-			//如果是一个整数
-			numberStr = String.valueOf((int) number);
-		} else {
-			DecimalFormat df = new DecimalFormat("######0.0000");
-			numberStr = df.format(number);
+		StringBuilder pattern = new StringBuilder(".");
+		for (int i = 0; i < decimalFormat; i++) {
+			pattern.append("#");
 		}
-		return numberStr;
+		DecimalFormat df = new DecimalFormat(pattern.toString());
+		return df.format(number);
+
 	}
 
 	public void addAvgPlane(Double avg){
-		chart.addAnnotation(
-				new AnnotationTextPanel(
-						"AVG: " + doubleFormatInteger(avg),
-						480,
-						380,
-						true));
+		if (avgTextPanel == null) {
+			chart.getStyler().setAnnotationTextPanelFontColor(Color.RED);
+			chart.getStyler().setAnnotationTextPanelFont(new Font("Verdana", Font.BOLD, 14));
+			avgTextPanel = new AnnotationTextPanel(
+					"AVG: " + doubleFormatInteger(avg),
+					480,
+					380,
+					true);
+			chart.addAnnotation(avgTextPanel);
+		}else {
+			avgTextPanel.setLines(Arrays.asList(("AVG: " + doubleFormatInteger(avg)).split("\\n")));
+		}
+
 	}
 
 }
